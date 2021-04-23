@@ -372,12 +372,50 @@ CSVPrinter::printShowHeader() const
         for ( int i = 1; i <= rcsc::MAX_PLAYER; ++i )
         {
             M_os << ", " << side << i << "_t"
+                 << ", " << side << i << "_kick_tried"
+                 << ", " << side << i << "_kick_failed"
+                 << ", " << side << i << "_goalie"
+                 << ", " << side << i << "_catch_tried"
+                 << ", " << side << i << "_catch_failed"
+                 << ", " << side << i << "_discarded"
+                 << ", " << side << i << "_collided_with_ball"
+                 << ", " << side << i << "_collided_with_player"
+                 << ", " << side << i << "_tackle_tried"
+                 << ", " << side << i << "_tackle_failed"
+                 << ", " << side << i << "_backpassed"
+                 << ", " << side << i << "_freekicked_wrong"
+                 << ", " << side << i << "_collided_with_post"
+                 << ", " << side << i << "_foul_frozen"
+                 << ", " << side << i << "_yellow_card"
+                 << ", " << side << i << "_red_card"
+                 << ", " << side << i << "_defended_illegaly"
                  << ", " << side << i << "_x"
                  << ", " << side << i << "_y"
                  << ", " << side << i << "_vx"
                  << ", " << side << i << "_vy"
                  << ", " << side << i << "_body"
-                 << ", " << side << i << "_neck";
+                 << ", " << side << i << "_neck"
+                 << ", " << side << i << "_arm_point_x"
+                 << ", " << side << i << "_arm_point_y"
+                 << ", " << side << i << "_view_q"
+                 << ", " << side << i << "_view_w"
+                 << ", " << side << i << "_stamina"
+                 << ", " << side << i << "_effort"
+                 << ", " << side << i << "_stamina_rec"
+                 << ", " << side << i << "_stamina_cap"
+                 << ", " << side << i << "_focus_side"
+                 << ", " << side << i << "_focus_unum"
+                 << ", " << side << i << "_kick_count"
+                 << ", " << side << i << "_dash_count"
+                 << ", " << side << i << "_turn_count"
+                 << ", " << side << i << "_catch_count"
+                 << ", " << side << i << "_move_count"
+                 << ", " << side << i << "_turnneck_count"
+                 << ", " << side << i << "_changeview_count"
+                 << ", " << side << i << "_say_count"
+                 << ", " << side << i << "_tackle_count"
+                 << ", " << side << i << "_arm_count"
+                 << ", " << side << i << "_focus_count";
         }
         side = 'r';
     }
@@ -490,26 +528,175 @@ CSVPrinter::printPlayers( const rcsc::rcg::ShowInfoT & show ) const
 std::ostream &
 CSVPrinter::printPlayer( const rcsc::rcg::PlayerT & player ) const
 {
-    if ( player.state_ == rcsc::rcg::DISABLE )
+    if (!player.isAlive())
     {
-        M_os << ',' //<< player.type_
+        // Player is disconnected
+        M_os << "," //<< player.type_
+             << "," //<< ((player.state_ & rcsc::rcg::KICK) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::KICK_FAULT) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::GOALIE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::CATCH) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::CATCH_FAULT) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::DISCARD) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::BALL_COLLIDE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::PLAYER_COLLIDE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::TACKLE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::TACKLE_FAULT) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::BACK_PASS) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::FREE_KICK_FAULT) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::POST_COLLIDE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::FOUL_CHARGED) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::YELLOW_CARD) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::RED_CARD) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::ILLEGAL_DEFENSE) != 0)
              << ',' //<< player.x_
              << ',' //<< player.y_
              << ',' //<< player.vx_
              << ',' //<< player.vy_
              << ',' //<< player.body_
-             << ',' //<< player.neck_;
+             << ',' //<< player.neck_
+             << "," //<< player.point_x_ 
+             << "," //<< player.point_y_
+             << "," //<< player.view_quality_
+             << "," //<< player.view_width_
+             << "," //<< player.stamina_
+             << "," //<< player.effort_
+             << "," //<< player.recovery_
+             << "," //<< player.stamina_capacity_
+             << "," //<< player.focus_side_
+             << "," //<< player.focus_unum_
+             << "," //<< player.kick_count_
+             << "," //<< player.dash_count_
+             << "," //<< player.turn_count_
+             << "," //<< player.catch_count_
+             << "," //<< player.move_count_
+             << "," //<< player.turn_neck_count_
+             << "," //<< player.change_view_count_
+             << "," //<< player.say_count_
+             << "," //<< player.tackle_count_
+             << "," //<< player.pointto_count_
+             << "," //<< player.attentionto_count_
+            ;
+    } 
+    else if (player.state_ & rcsc::rcg::DISCARD)
+    {
+        // Player was either discarded by monitor or received a red card
+        M_os << "," //<< player.type_
+             << "," //<< ((player.state_ & rcsc::rcg::KICK) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::KICK_FAULT) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::GOALIE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::CATCH) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::CATCH_FAULT) != 0)
+             << "," << ((player.state_ & rcsc::rcg::DISCARD) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::BALL_COLLIDE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::PLAYER_COLLIDE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::TACKLE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::TACKLE_FAULT) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::BACK_PASS) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::FREE_KICK_FAULT) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::POST_COLLIDE) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::FOUL_CHARGED) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::YELLOW_CARD) != 0)
+             << "," << ((player.state_ & rcsc::rcg::RED_CARD) != 0)
+             << "," //<< ((player.state_ & rcsc::rcg::ILLEGAL_DEFENSE) != 0)
+             << ',' //<< player.x_
+             << ',' //<< player.y_
+             << ',' //<< player.vx_
+             << ',' //<< player.vy_
+             << ',' //<< player.body_
+             << ',' //<< player.neck_
+             << "," //<< player.point_x_ 
+             << "," //<< player.point_y_
+             << "," //<< player.view_quality_
+             << "," //<< player.view_width_
+             << "," //<< player.stamina_
+             << "," //<< player.effort_
+             << "," //<< player.recovery_
+             << "," //<< player.stamina_capacity_
+             << "," //<< player.focus_side_
+             << "," //<< player.focus_unum_
+             << "," //<< player.kick_count_
+             << "," //<< player.dash_count_
+             << "," //<< player.turn_count_
+             << "," //<< player.catch_count_
+             << "," //<< player.move_count_
+             << "," //<< player.turn_neck_count_
+             << "," //<< player.change_view_count_
+             << "," //<< player.say_count_
+             << "," //<< player.tackle_count_
+             << "," //<< player.pointto_count_
+             << "," //<< player.attentionto_count_
             ;
     }
     else
     {
-        M_os << ',' << player.type_
+        M_os << "," << player.type_
+             << "," << ((player.state_ & rcsc::rcg::KICK) != 0)
+             << "," << ((player.state_ & rcsc::rcg::KICK_FAULT) != 0)
+             << "," << ((player.state_ & rcsc::rcg::GOALIE) != 0)
+             << "," << ((player.state_ & rcsc::rcg::CATCH) != 0)
+             << "," << ((player.state_ & rcsc::rcg::CATCH_FAULT) != 0)
+             << "," << ((player.state_ & rcsc::rcg::DISCARD) != 0)
+             << "," << ((player.state_ & rcsc::rcg::BALL_COLLIDE) != 0)
+             << "," << ((player.state_ & rcsc::rcg::PLAYER_COLLIDE) != 0)
+             << "," << ((player.state_ & rcsc::rcg::TACKLE) != 0)
+             << "," << ((player.state_ & rcsc::rcg::TACKLE_FAULT) != 0)
+             << "," << ((player.state_ & rcsc::rcg::BACK_PASS) != 0)
+             << "," << ((player.state_ & rcsc::rcg::FREE_KICK_FAULT) != 0)
+             << "," << ((player.state_ & rcsc::rcg::POST_COLLIDE) != 0)
+             << "," << ((player.state_ & rcsc::rcg::FOUL_CHARGED) != 0)
+             << "," << ((player.state_ & rcsc::rcg::YELLOW_CARD) != 0)
+             << "," << ((player.state_ & rcsc::rcg::RED_CARD) != 0)
+             << "," << ((player.state_ & rcsc::rcg::ILLEGAL_DEFENSE) != 0)
              << ',' << player.x_
              << ',' << player.y_
              << ',' << player.vx_
              << ',' << player.vy_
              << ',' << player.body_
              << ',' << player.neck_
+            ;
+        if (player.isPointing())
+        {
+            M_os << "," << player.point_x_ 
+                 << "," << player.point_y_
+                ;
+        }
+        else
+        {
+            M_os << "," //<< player.point_x_ 
+                 << "," //<< player.point_y_
+                ;
+        }
+        M_os << "," << player.view_quality_
+             << "," << player.view_width_
+             << "," << player.stamina_
+             << "," << player.effort_
+             << "," << player.recovery_
+             << "," << player.stamina_capacity_
+            ;
+        if (player.isFocusing())
+        {
+            M_os << "," << player.focus_side_
+                 << "," << player.focus_unum_
+                ;
+        }
+        else
+        {
+            M_os << "," //<< player.focus_side_
+                 << "," //<< player.focus_unum_
+                ;
+        }
+        M_os << "," << player.kick_count_
+             << "," << player.dash_count_
+             << "," << player.turn_count_
+             << "," << player.catch_count_
+             << "," << player.move_count_
+             << "," << player.turn_neck_count_
+             << "," << player.change_view_count_
+             << "," << player.say_count_
+             << "," << player.tackle_count_
+             << "," << player.pointto_count_
+             << "," << player.attentionto_count_
             ;
     }
     return M_os;
