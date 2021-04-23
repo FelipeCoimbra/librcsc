@@ -704,6 +704,84 @@ CSVPrinter::printPlayer( const rcsc::rcg::PlayerT & player ) const
 
 ////////////////////////////////////////////////////////////////////////
 
+class CSVPrinterMultiDest 
+    : public rcsc::rcg::Handler {
+public:
+    CSVPrinterMultiDest();
+    CSVPrinterMultiDest(const CSVPrinterMultiDest&) = delete;
+    CSVPrinterMultiDest(CSVPrinterMultiDest&&) = delete;
+
+    virtual
+    bool handleShow( const rcsc::rcg::ShowInfoT & show ) noexcept override {
+        return matchPrinter ? matchPrinter->handleShow(show) : true;
+    }
+
+    virtual
+    bool handleMsg( const int time,
+                    const int board,
+                    const std::string & msg ) noexcept override {
+        return matchPrinter ? matchPrinter->handleMsg(time, board, msg) : true;
+    }
+
+    virtual
+    bool handleDraw( const int time,
+                     const rcsc::rcg::drawinfo_t & draw ) noexcept override {
+        return matchPrinter ? matchPrinter->handleDraw(time, draw) : true;
+    }
+
+    virtual
+    bool handlePlayMode( const int time,
+                         const rcsc::PlayMode pm ) noexcept override {
+        return matchPrinter ? matchPrinter->handlePlayMode(time, pm) : true;
+    }
+
+    virtual
+    bool handleTeam( const int time,
+                     const rcsc::rcg::TeamT & team_l,
+                     const rcsc::rcg::TeamT & team_r ) noexcept override {
+        return matchPrinter ? matchPrinter->handleTeam(time, team_l, team_r) : true;
+    }
+
+    virtual
+    bool handleServerParam( const std::string & msg ) noexcept override {
+        return matchPrinter ? matchPrinter->handleServerParam(msg) : true;
+    }
+
+    virtual
+    bool handlePlayerParam( const std::string & msg ) noexcept override {
+        return matchPrinter ? matchPrinter->handlePlayerParam(msg) : true;
+    }
+
+    virtual
+    bool handlePlayerType( const std::string & msg ) noexcept override {
+        return matchPrinter ? matchPrinter->handlePlayerType(msg) : true;
+    }
+
+    virtual
+    bool handleEOF() noexcept override {
+        return matchPrinter ? matchPrinter->handleEOF() : true;
+    }
+
+private:
+    void initializePrinters() noexcept;
+
+    std::unique_ptr<CSVPrinter> matchPrinter; //!< Prints CSV of the match development, indexed by (normal time, stop time).
+};
+
+CSVPrinterMultiDest::CSVPrinterMultiDest()
+:   matchPrinter(nullptr)
+{
+    initializePrinters();
+}
+
+void 
+CSVPrinterMultiDest::initializePrinters() noexcept {
+    matchPrinter.reset(new CSVPrinter(std::cout));
+}
+
+
+////////////////////////////////////////////////////////////////////////
+
 int
 main( int argc, char** argv )
 {
@@ -731,7 +809,7 @@ main( int argc, char** argv )
         return 1;
     }
 
-    CSVPrinter printer( std::cout );
+    CSVPrinterMultiDest printer;
 
     parser->parse( fin, printer );
 
