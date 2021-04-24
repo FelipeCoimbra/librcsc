@@ -10,6 +10,9 @@
 #include <fstream>
 #include <string>
 
+#include <rcsc/param/param_map.h>
+#include <rcsc/param/cmd_line_parser.h>
+
 #include <rcsc/common/server_param.h>
 #include <rcsc/common/player_param.h>
 #include <rcsc/common/player_type.h>
@@ -704,12 +707,12 @@ CSVPrinter::printPlayer( const rcsc::rcg::PlayerT & player ) const
 
 ////////////////////////////////////////////////////////////////////////
 
-class CSVPrinterMultiDest 
+class MultiSinkCSVPrinter 
     : public rcsc::rcg::Handler {
 public:
-    CSVPrinterMultiDest();
-    CSVPrinterMultiDest(const CSVPrinterMultiDest&) = delete;
-    CSVPrinterMultiDest(CSVPrinterMultiDest&&) = delete;
+    MultiSinkCSVPrinter();
+    MultiSinkCSVPrinter(const MultiSinkCSVPrinter&) = delete;
+    MultiSinkCSVPrinter(MultiSinkCSVPrinter&&) = delete;
 
     virtual
     bool handleShow( const rcsc::rcg::ShowInfoT & show ) noexcept override {
@@ -762,42 +765,119 @@ public:
         return matchPrinter ? matchPrinter->handleEOF() : true;
     }
 
-private:
-    void initializePrinters() noexcept;
+    /*!
+      \brief Enables printing the Match CSV Table and sets its output destination.
+      \param sink The output destination. If null, the printer prints to std::cout.
+    */
+    void enableMatchPrinter(std::unique_ptr<std::ostream>&& sink=nullptr) noexcept;
 
-    std::unique_ptr<CSVPrinter> matchPrinter; //!< Prints CSV of the match development, indexed by (normal time, stop time).
+private:
+
+    std::unique_ptr<CSVPrinter> matchPrinter; //<! Prints the CSV table with data from the course of the match
+    std::unique_ptr<std::ostream> matchPrinterSink; //<! The output sink for the match table
 };
 
-CSVPrinterMultiDest::CSVPrinterMultiDest()
+MultiSinkCSVPrinter::MultiSinkCSVPrinter()
 :   matchPrinter(nullptr)
-{
-    initializePrinters();
-}
+,   matchPrinterSink(nullptr)
+{}
 
 void 
-CSVPrinterMultiDest::initializePrinters() noexcept {
-    matchPrinter.reset(new CSVPrinter(std::cout));
+MultiSinkCSVPrinter::enableMatchPrinter(std::unique_ptr<std::ostream>&& sink) noexcept {
+    matchPrinterSink = std::forward<std::unique_ptr<std::ostream>>(sink);
+    matchPrinter.reset( new CSVPrinter( matchPrinterSink ? *matchPrinterSink : std::cout) );
 }
 
+////////////////////////////////////////////////////////////////////////
+
+class RCG2CSVOptions {
+public:
+
+    RCG2CSVOptions() = default;
+    RCG2CSVOptions(const RCG2CSVOptions&) = default;
+    RCG2CSVOptions(RCG2CSVOptions&&) = default;
+
+    bool matchTableEnabled() const noexcept {
+        return matchTableSwitch;
+    }
+    const std::string& getMatchTableOutputPath() const noexcept {
+        return matchTableOutputPath;
+    }
+    const std::string& getRCGSourcePath() const noexcept {
+        return rcgSourcePath;
+    }
+
+    //<! Below is just a commodity so we don't add lots of setters.
+    friend void fillFromCmdLine(int, const char* const*, RCG2CSVOptions&);
+private:
+    bool matchTableSwitch = false;
+    std::string matchTableOutputPath;
+    std::string rcgSourcePath;
+};
 
 ////////////////////////////////////////////////////////////////////////
+
+void usage()
+{
+    std::cerr << "Usage: rcg2csv [options] <RCGFile>[.gz]" << std::endl;
+}
+
+void fillFromCmdLine(int argc, const char* const* argv, RCG2CSVOptions& options)
+{
+    // Define options for command line arguments and register capture variables.
+    rcsc::ParamMap rcg2csvParamMap;
+    bool help = false;
+    rcg2csvParamMap.add()
+        ("help", "h", rcsc::BoolSwitch(&help), "Display help message and exit.")
+        ("match", "m", rcsc::BoolSwitch(&options.matchTableSwitch), "Print CSV table with match development data.")
+        ("match-out", "mo", &options.matchTableOutputPath, "Output path for the Match table. Leave empty to use the standard output.")
+        ;
+    // The capture variables default values are the ones stored before parsing.
+    // If we don't generate the help message before parsing, we lose them and will display a wrong help message.
+    std::stringstream helpMessage;
+    rcg2csvParamMap.printHelp(helpMessage);
+
+    // Parse command line arguments and fill parameter map
+    rcsc::CmdLineParser cmdLineParser(argc, argv);
+    cmdLineParser.parse(rcg2csvParamMap);
+    if (help) {
+        usage();
+        std::cerr << helpMessage.str();
+        exit(0);
+    } else if (cmdLineParser.failed()) {
+        std::cerr << "ERROR: Failed to parse Command Line Options." << std::endl;
+        usage();
+        std::cerr << helpMessage.str();
+        exit(1);
+    }
+
+    // Collect RCG source path
+    if (cmdLineParser.positionalOptions().size() != 1) {
+        std::cerr << "ERROR: Expected 1 positional argument." << std::endl;
+        usage();
+        std::cerr << helpMessage.str();
+        exit(1);
+    }
+    options.rcgSourcePath = cmdLineParser.positionalOptions().front();
+}
+
 
 int
 main( int argc, char** argv )
 {
-    if ( argc != 2
-         || ! std::strncmp( argv[1], "--help", 6 )
-         || ! std::strncmp( argv[1], "-h", 2 ) )
-    {
-        std::cerr << "usage: " << argv[0] << " <RCGFile>[.gz]" << std::endl;
-        return 0;
+    RCG2CSVOptions options;
+    fillFromCmdLine(argc, argv, options);
+
+    // Warn if no work to be done.
+    if (!options.matchTableEnabled()) {
+        std::cerr << "WARNING: No work to be done." << std::endl;
     }
 
-    rcsc::gzifstream fin( argv[1] );
+    rcsc::gzifstream fin( options.getRCGSourcePath().c_str() );
 
     if ( ! fin.is_open() )
     {
-        std::cerr << "Failed to open file : " << argv[1] << std::endl;
+        std::cerr << "Failed to open file : " << options.getRCGSourcePath() << std::endl;
         return 1;
     }
 
@@ -809,7 +889,21 @@ main( int argc, char** argv )
         return 1;
     }
 
-    CSVPrinterMultiDest printer;
+
+    MultiSinkCSVPrinter printer;
+    // Initialize MultiSink Printer
+    if (options.matchTableEnabled()) {
+        if (options.getMatchTableOutputPath().empty()) {
+            printer.enableMatchPrinter();
+        } else {
+            std::unique_ptr<std::ostream> matchTableSink(new std::ofstream(options.getMatchTableOutputPath()));
+            if (matchTableSink->fail()) {
+                std::cerr << "ERROR: Could not open match table output file \"" << options.getMatchTableOutputPath() << "\"" << std::endl;
+                return 1;
+            }
+            printer.enableMatchPrinter(std::move(matchTableSink));
+        }
+    }
 
     parser->parse( fin, printer );
 
