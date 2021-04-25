@@ -4,6 +4,7 @@
 #include <config.h>
 #endif
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -274,12 +275,18 @@ CSVPrinter::handleTeam( const int,
 bool
 CSVPrinter::handleServerParam( const std::string & msg )
 {
-    if ( ! rcsc::ServerParam::instance().parse( msg.c_str(), 8 ) )
-    {
-        return false;
+    static bool firstCall = true;
+    if (firstCall) {
+        firstCall = false;
+        if ( ! rcsc::ServerParam::instance().parse( msg.c_str(), 8 ) ) {
+            std::cerr << "ERROR: Failed to extract ServerParam object from server_param message." << std::endl;
+            return false;
+        }
+        printServerParam();
+        return true;
     }
-
-    return true;
+    // There should be only one server_params log entry.
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
@@ -332,6 +339,529 @@ CSVPrinter::getPlayModeString( const rcsc::PlayMode playmode ) const
 std::ostream &
 CSVPrinter::printServerParam() const
 {
+    const rcsc::ServerParam& sp = rcsc::ServerParam::i();
+    //
+    // Header
+    //
+    M_os    << "#" // Primary key
+            << ",goal_width"
+            << ",inertia_moment"
+
+            << ",player_size"
+            << ",player_decay"
+            << ",player_rand"
+            << ",player_weight"
+            << ",player_speed_max"
+            << ",player_accel_max"
+
+            << ",stamina_max"
+            << ",stamina_inc_max"
+
+            << ",recover_init"
+            << ",recover_dec_thr"
+            << ",recover_min"
+            << ",recover_dec"
+
+            << ",effort_init"
+            << ",effort_dec_thr"
+            << ",effort_min"
+            << ",effort_dec"
+            << ",effort_inc_thr"
+            << ",effort_inc"
+
+            << ",kick_rand"
+            << ",team_actuator_noise"
+            << ",prand_factor_l"
+            << ",prand_factor_r"
+            << ",kick_rand_factor_l"
+            << ",kick_rand_factor_r"
+
+            << ",ball_size"
+            << ",ball_decay"
+            << ",ball_rand"
+            << ",ball_weight"
+            << ",ball_speed_max"
+            << ",ball_accel_max"
+
+            << ",dash_power_rate"
+            << ",kick_power_rate"
+            << ",kickable_margin"
+            << ",control_radius"
+
+            << ",maxpower"
+            << ",minpower"
+            << ",maxmoment"
+            << ",minmoment"
+            << ",maxneckmoment"
+            << ",minneckmoment"
+            << ",maxneckang"
+            << ",minneckang"
+
+            << ",visible_angle"
+            << ",visible_distance"
+
+            << ",wind_dir"
+            << ",wind_force"
+            << ",wind_ang"
+            << ",wind_rand"
+
+            << ",catchable_area_l"
+            << ",catchable_area_w"
+            << ",catch_probability"
+            << ",goalie_max_moves"
+
+            << ",ckick_margin"
+            << ",offside_active_area_size"
+
+            << ",wind_none"
+            << ",wind_random"
+
+            << ",say_coach_cnt_max"
+            << ",say_coach_msg_size"
+
+            << ",clang_win_size"
+            << ",clang_define_win"
+            << ",clang_meta_win"
+            << ",clang_advice_win"
+            << ",clang_info_win"
+            << ",clang_mess_delay"
+            << ",clang_mess_per_cycle"
+
+            << ",half_time"
+            << ",simulator_step"
+            << ",send_step"
+            << ",recv_step"
+            << ",sense_body_step"
+
+            << ",say_msg_size"
+            << ",hear_max"
+            << ",hear_inc"
+            << ",hear_decay"
+
+            << ",catch_ban_cycle"
+
+            << ",slow_down_factor"
+
+            << ",use_offside"
+            << ",forbid_kick_off_offside"
+            << ",offside_kick_margin"
+
+            << ",audio_cut_dist"
+
+            << ",quantize_step"
+            << ",quantize_step_l"
+
+
+            << ",coach"
+            << ",coach_w_referee"
+            << ",old_coach_hear"
+
+            << ",slowness_on_top_for_left_team"
+            << ",slowness_on_top_for_right_team"
+
+            << ",start_goal_l"
+            << ",start_goal_r"
+
+            << ",fullstate_l"
+            << ",fullstate_r"
+
+            << ",drop_ball_time"
+
+            << ",synch_mode"
+            << ",synch_offset"
+            << ",synch_micro_sleep"
+
+            << ",point_to_ban"
+            << ",point_to_duration"
+
+            // not defined in server_params_t
+            << ",port"
+            << ",coach_port"
+            << ",olcoach_port"
+
+            << ",verbose"
+
+            << ",send_vi_step"
+
+            << ",landmark_file"
+
+            << ",send_comms"
+
+            // logging params are not used in normal client
+            << ",text_logging"
+            << ",game_logging"
+            << ",game_log_version"
+            << ",text_log_dir"
+            << ",game_log_dir"
+            << ",text_log_fixed_name"
+            << ",game_log_fixed_name"
+            << ",text_log_fixed"
+            << ",game_log_fixed"
+            << ",text_log_dated"
+            << ",game_log_dated"
+            << ",log_date_format"
+            << ",log_times"
+            << ",record_messages"
+            << ",text_log_compression"
+            << ",game_log_compression"
+            << ",profile"
+
+
+            << ",tackle_dist"
+            << ",tackle_back_dist"
+            << ",tackle_width"
+            << ",tackle_exponent"
+            << ",tackle_cycles"
+            << ",tackle_power_rate"
+
+            << ",freeform_wait_period"
+            << ",freeform_send_period"
+
+            << ",free_kick_faults"
+            << ",back_passes"
+
+            << ",proper_goal_kicks"
+            << ",stopped_ball_vel"
+            << ",max_goal_kicks"
+
+            << ",clang_del_win"
+            << ",clang_rule_win"
+
+            << ",auto_mode"
+            << ",kick_off_wait"
+            << ",connect_wait"
+            << ",game_over_wait"
+            << ",team_l_start"
+            << ",team_r_start"
+
+            << ",keepaway"
+            << ",keepaway_length"
+            << ",keepaway_width"
+
+            // logging params are not used in normal client
+            << ",keepaway_logging"
+            << ",keepaway_log_dir"
+            << ",keepaway_log_fixed_name"
+            << ",keepaway_log_fixed"
+            << ",keepaway_log_dated"
+
+            << ",keepaway_start"
+
+            << ",nr_normal_halfs"
+            << ",nr_extra_halfs"
+            << ",penalty_shoot_outs"
+
+            << ",pen_before_setup_wait"
+            << ",pen_setup_wait"
+            << ",pen_ready_wait"
+            << ",pen_taken_wait"
+            << ",pen_nr_kicks"
+            << ",pen_max_extra_kicks"
+            << ",pen_dist_x"
+            << ",pen_random_winner"
+            << ",pen_max_goalie_dist_x"
+            << ",pen_allow_mult_kicks"
+            << ",pen_coach_moves_players"
+
+
+            << ",ball_stuck_area"
+            << ",coach_msg_file"
+            // 12
+            << ",max_tackle_power"
+            << ",max_back_tackle_power"
+            << ",player_speed_max_min"
+            << ",extra_stamina"
+            << ",synch_see_offset"
+            << ",max_monitors"
+            // 12.1.3
+            << ",extra_half_time"
+            // 13.0.0
+            << ",stamina_capacity"
+            << ",max_dash_angle"
+            << ",min_dash_angle"
+            << ",dash_angle_step"
+            << ",side_dash_rate"
+            << ",back_dash_rate"
+            << ",max_dash_power"
+            << ",min_dash_power"
+            // 14.0.0
+            << ",tackle_rand_factor"
+            << ",foul_detect_probability"
+            << ",foul_exponent"
+            << ",foul_cycles"
+            << ",golden_goal"
+            // 15.0.0
+            << ",red_card_probability"
+            // 16.0.0
+            << ",illegal_defense_duration"
+            << ",illegal_defense_number"
+            << ",illegal_defense_dist_x"
+            << ",illegal_defense_width"
+            << ",fixed_teamname_l"
+            << ",fixed_teamname_r"
+            ;
+    // Line break
+    M_os << std::endl;
+    //
+    // Parameters values
+    //
+    M_os    << "1" // Row number
+            << "," << sp.goalWidth()
+            << "," << sp.defaultInertiaMoment()
+
+            << "," << sp.defaultPlayerSize()
+            << "," << sp.defaultPlayerDecay()
+            << "," << sp.playerRand()
+            << "," << sp.playerWeight()
+            << "," << sp.defaultPlayerSpeedMax()
+            << "," << sp.playerAccelMax()
+
+            << "," << sp.staminaMax()
+            << "," << sp.defaultStaminaIncMax()
+
+            << "," << sp.recoverInit()
+            << "," << sp.recoverDecThr()
+            << "," << sp.recoverMin()
+            << "," << sp.recoverDec()
+
+            << "," << sp.effortInit()
+            << "," << sp.effortDecThr()
+            << "," << sp.defaultEffortMin()
+            << "," << sp.effortDec()
+            << "," << sp.effortIncThr()
+            << "," << sp.effortIncThr()
+
+            << "," << sp.defaultKickRand()
+            << "," << sp.teamActuatorNoise()
+            << "," << sp.playerRandFactorLeft()
+            << "," << sp.playerRandFactorRight()
+            << "," << sp.kickRandFactorLeft()
+            << "," << sp.kickRandFactorRight()
+
+            << "," << sp.ballSize()
+            << "," << sp.ballDecay()
+            << "," << sp.ballRand()
+            << "," << sp.ballWeight()
+            << "," << sp.ballSpeedMax()
+            << "," << sp.ballAccelMax()
+
+            << "," << sp.defaultDashPowerRate()
+            << "," << sp.kickPowerRate()
+            << "," << sp.defaultKickableMargin()
+            << "," << sp.controlRadius()
+
+            << "," << sp.maxPower()
+            << "," << sp.minPower()
+            << "," << sp.maxMoment()
+            << "," << sp.minMoment()
+            << "," << sp.maxNeckMoment()
+            << "," << sp.minNeckMoment()
+            << "," << sp.maxNeckAngle()
+            << "," << sp.minNeckAngle()
+
+            << "," << sp.visibleAngle()
+            << "," << sp.visibleDistance()
+
+            << "," << sp.windDir()
+            << "," << sp.windForce()
+            << "," << sp.windAngle()
+            << "," << sp.windRand()
+
+            << "," << sp.catchAreaLength()
+            << "," << sp.catchAreaWidth()
+            << "," << sp.catchProbability()
+            << "," << sp.goalieMaxMoves()
+
+            << "," << sp.cornerKickMargin()
+            << "," << sp.offsideActiveAreaSize()
+
+            << "," << sp.windNone()
+            << "," << sp.windRand()
+
+            << "," << sp.coachSayCountMax()
+            << "," << sp.coachSayMsgSize()
+
+            << "," << sp.clangWinSize()
+            << "," << sp.clangDefineWin()
+            << "," << sp.clangMetaWin()
+            << "," << sp.clangAdviceWin()
+            << "," << sp.clangInfoWin()
+            << "," << sp.clangMessDelay()
+            << "," << sp.clangMessPerCycle()
+
+            << "," << sp.halfTime()
+            << "," << sp.simulatorStep()
+            << "," << sp.sendStep()
+            << "," << sp.recvStep()
+            << "," << sp.senseBodyStep()
+
+            << "," << sp.playerSayMsgSize()
+            << "," << sp.playerHearMax()
+            << "," << sp.playerHearInc()
+            << "," << sp.playerHearDecay()
+
+            << "," << sp.catchBanCycle()
+
+            << "," << sp.slowDownFactor()
+
+            << "," << sp.useOffside()
+            << "," << sp.kickoffOffside()
+            << "," << sp.offsideKickMargin()
+
+            << "," << sp.audioCutDist()
+
+            << "," << sp.distQuantizeStep()
+            << "," << sp.landmarkDistQuantizeStep()
+
+
+            << "," << sp.coachMode()
+            << "," << sp.coachWithRefereeMode()
+            << "," << sp.useOldCoachHear()
+
+            << "," << sp.slownessOnTopForLeft()
+            << "," << sp.slownessOnTopForRight()
+
+            << "," << sp.startGoalLeft()
+            << "," << sp.stargGoalRight()
+
+            << "," << sp.fullstateLeft()
+            << "," << sp.fullstateRight()
+
+            << "," << sp.dropBallTime()
+
+            << "," << sp.synchMode()
+            << "," << sp.synchOffset()
+            << "," << sp.synchMicroSleep()
+
+            << "," << sp.pointToBan()
+            << "," << sp.pointToDuration()
+
+            // not defined in server_params_t
+            << "," << sp.playerPort()
+            << "," << sp.trainerPort()
+            << "," << sp.onlineCoachPort()
+
+            << "," << sp.verboseMode()
+
+            << "," << sp.coachSendVIStep()
+
+            << "," << "\"" << sp.landmarkFile() << "\""
+
+            << "," << sp.sendComms()
+
+            // logging params are not used in normal client
+            << "," << sp.textLogging()
+            << "," << sp.gameLogging()
+            << "," << sp.gameLogVersion()
+            << "," << "\"" << sp.textLogDir() << "\""
+            << "," << "\"" << sp.gameLogDir() << "\""
+            << "," << "\"" << sp.textLogFixedName() << "\""
+            << "," << "\"" << sp.gameLogFixedName() << "\""
+            << "," << sp.textLogFixed()
+            << "," << sp.gameLogFixed()
+            << "," << sp.textLogDated()
+            << "," << sp.gameLogDated()
+            << "," << "\"" << sp.logDateFormat() << "\""
+            << "," << sp.logTimes()
+            << "," << sp.recordMessage()
+            << "," << sp.textLogCompression()
+            << "," << sp.gameLogCompression()
+            << "," << sp.useProfile()
+
+
+            << "," << sp.tackleDist()
+            << "," << sp.tackleBackDist()
+            << "," << sp.tackleWidth()
+            << "," << sp.tackleExponent()
+            << "," << sp.tackleCycles()
+            << "," << sp.tacklePowerRate()
+
+            << "," << sp.freeformWaitPeriod()
+            << "," << sp.freeformSendPeriod()
+
+            << "," << sp.freeKickFaults()
+            << "," << sp.backPasses()
+
+            << "," << sp.properGoalKicks()
+            << "," << sp.stoppedBallVel()
+            << "," << sp.maxGoalKicks()
+
+            << "," << sp.clangDelWin()
+            << "," << sp.clangRuleWin()
+
+            << "," << sp.autoMode()
+            << "," << sp.kickOffWait()
+            << "," << sp.connectWait()
+            << "," << sp.gameOverWait()
+            << "," << "\"" << sp.teamLeftStartCommand() <<"\""
+            << "," << "\"" << sp.teamRightStartCommand() << "\""
+
+            << "," << sp.keepawayMode()
+            << "," << sp.keepawayLength()
+            << "," << sp.keepawayWidth()
+
+            // logging params are not used in normal client
+            << "," << sp.keepawayLogging()
+            << "," << "\"" << sp.keepawayLogDir() << "\""
+            << "," << "\"" << sp.keepawayLogFixedName() << "\""
+            << "," << sp.keepawayLogFixed()
+            << "," << sp.keepawayLogDated()
+
+            << "," << sp.keepawayStart()
+
+            << "," << sp.nrNormalHalfs()
+            << "," << sp.nrExtraHalfs()
+            << "," << sp.penaltyShootOuts()
+
+            << "," << sp.penBeforeSetupWait()
+            << "," << sp.penSetupWait()
+            << "," << sp.penReadyWait()
+            << "," << sp.penTakenWait()
+            << "," << sp.penNrKicks()
+            << "," << sp.penMaxExtraKicks()
+            << "," << sp.penDistX()
+            << "," << sp.penRandomWinner()
+            << "," << sp.penMaxGoalieDistX()
+            << "," << sp.penAllowMultKicks()
+            << "," << sp.penCoachMovesPlayers()
+
+            << "," << sp.ballStuckArea()
+            << "," << "\"" << sp.coachMsgFile() << "\""
+            // 12
+            << "," << sp.maxTacklePower()
+            << "," << sp.maxBackTacklePower()
+            << "," << sp.playerSpeedMaxMin()
+            << "," << sp.defaultExtraStamina()
+            << "," << sp.synchSeeOffset()
+            << "," << sp.maxMonitors()
+            // 12.1.3
+            << "," << sp.extraHalfTime()
+            // 13.0.0
+            << "," << sp.staminaCapacity()
+            << "," << sp.maxDashAngle()
+            << "," << sp.minDashAngle()
+            << "," << sp.dashAngleStep()
+            << "," << sp.sideDashRate()
+            << "," << sp.backDashRate()
+            << "," << sp.maxDashPower()
+            << "," << sp.minDashPower()
+            // 14.0.0
+            << "," << sp.tackleRandFactor()
+            << "," << sp.foulDetectProbability()
+            << "," << sp.foulExponent()
+            << "," << sp.foulCycles()
+            << "," << sp.goldenGoal()
+            // 15.0.0
+            << "," << sp.redCardProbability()
+            // 16.0.0
+            << "," << sp.illegalDefenseDuration()
+            << "," << sp.illegalDefenseNumber()
+            << "," << sp.illegalDefenseDistX()
+            << "," << sp.illegalDefenseWidth()
+            << "," << "\"" << sp.fixedTeamNameLeft() << "\""
+            << "," << "\"" << sp.fixedTeamNameRight() <<"\""
+            ;
+    M_os << std::endl;
     return M_os;
 }
 
@@ -714,6 +1244,8 @@ public:
     MultiSinkCSVPrinter(const MultiSinkCSVPrinter&) = delete;
     MultiSinkCSVPrinter(MultiSinkCSVPrinter&&) = delete;
 
+    ~MultiSinkCSVPrinter();
+
     virtual
     bool handleShow( const rcsc::rcg::ShowInfoT & show ) noexcept override {
         return matchPrinter ? matchPrinter->handleShow(show) : true;
@@ -747,7 +1279,7 @@ public:
 
     virtual
     bool handleServerParam( const std::string & msg ) noexcept override {
-        return matchPrinter ? matchPrinter->handleServerParam(msg) : true;
+        return serverParamsPrinter ? serverParamsPrinter->handleServerParam(msg) : true;
     }
 
     virtual
@@ -771,21 +1303,48 @@ public:
     */
     void enableMatchPrinter(std::unique_ptr<std::ostream>&& sink=nullptr) noexcept;
 
+    /*!
+      \brief Enables printing the ServerParams CSV Table and sets its output destination.
+      \param sink The output destination. If null, the printer prints to std::cout.
+    */
+    void enableServerParamsPrinter(std::unique_ptr<std::ostream>&& sink=nullptr) noexcept;
+
 private:
 
     std::unique_ptr<CSVPrinter> matchPrinter; //<! Prints the CSV table with data from the course of the match
     std::unique_ptr<std::ostream> matchPrinterSink; //<! The output sink for the match table
+    std::unique_ptr<CSVPrinter> serverParamsPrinter; //<! Prints the CSV table with rcssserver used parameters
+    std::unique_ptr<std::ostream> serverParamsSink; //<! The output sink for the server params table
 };
 
 MultiSinkCSVPrinter::MultiSinkCSVPrinter()
 :   matchPrinter(nullptr)
 ,   matchPrinterSink(nullptr)
+,   serverParamsPrinter(nullptr)
+,   serverParamsSink(nullptr)
 {}
+
+MultiSinkCSVPrinter::~MultiSinkCSVPrinter() {
+    auto matchFileSink  = dynamic_cast<std::ofstream*>(matchPrinterSink.get());
+    if (matchFileSink) {
+        matchFileSink->close();
+    }
+    auto serverParamsFileSink = dynamic_cast<std::ofstream*>(serverParamsSink.get());
+    if (serverParamsFileSink) {
+        serverParamsFileSink->close();
+    }
+}
 
 void 
 MultiSinkCSVPrinter::enableMatchPrinter(std::unique_ptr<std::ostream>&& sink) noexcept {
     matchPrinterSink = std::forward<std::unique_ptr<std::ostream>>(sink);
     matchPrinter.reset( new CSVPrinter( matchPrinterSink ? *matchPrinterSink : std::cout) );
+}
+
+void 
+MultiSinkCSVPrinter::enableServerParamsPrinter(std::unique_ptr<std::ostream>&& sink) noexcept {
+    serverParamsSink = std::forward<std::unique_ptr<std::ostream>>(sink);
+    serverParamsPrinter.reset( new CSVPrinter( serverParamsSink ? *serverParamsSink : std::cout) );
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -803,6 +1362,12 @@ public:
     const std::string& getMatchTableOutputPath() const noexcept {
         return matchTableOutputPath;
     }
+    bool serverParamsTableEnabled() const noexcept {
+        return serverParamsTableSwitch;
+    }
+    const std::string& getServerParamsTableOutputPath() const noexcept {
+        return serverParamsTableOutputPath;
+    }
     const std::string& getRCGSourcePath() const noexcept {
         return rcgSourcePath;
     }
@@ -812,6 +1377,8 @@ public:
 private:
     bool matchTableSwitch = false;
     std::string matchTableOutputPath;
+    bool serverParamsTableSwitch = false;
+    std::string serverParamsTableOutputPath;
     std::string rcgSourcePath;
 };
 
@@ -831,6 +1398,8 @@ void fillFromCmdLine(int argc, const char* const* argv, RCG2CSVOptions& options)
         ("help", "h", rcsc::BoolSwitch(&help), "Display help message and exit.")
         ("match", "m", rcsc::BoolSwitch(&options.matchTableSwitch), "Print CSV table with match development data.")
         ("match-out", "mo", &options.matchTableOutputPath, "Output path for the Match table. Leave empty to use the standard output.")
+        ("serverparams", "sp", rcsc::BoolSwitch(&options.serverParamsTableSwitch), "Print CSV table with rcssserver params used for the match.")
+        ("serverparams-out", "spo", &options.serverParamsTableOutputPath, "Output path for the ServerParams table. Leave empty to use the standard output.")
         ;
     // The capture variables default values are the ones stored before parsing.
     // If we don't generate the help message before parsing, we lose them and will display a wrong help message.
@@ -859,6 +1428,28 @@ void fillFromCmdLine(int argc, const char* const* argv, RCG2CSVOptions& options)
         exit(1);
     }
     options.rcgSourcePath = cmdLineParser.positionalOptions().front();
+
+    // Exit with error if multiple tables will print at standard output
+    std::vector<bool> enabled{
+        options.matchTableSwitch, 
+        options.serverParamsTableSwitch
+    };
+    std::vector<std::string> sinkPathStrs{
+        options.matchTableOutputPath, 
+        options.serverParamsTableOutputPath 
+    };
+    assert(enabled.size() == sinkPathStrs.size());
+    int count = 0;
+    for (size_t i=0; i<enabled.size(); i++) {
+        if (enabled[i] && sinkPathStrs[i].empty())
+            count++;
+    }
+    if (count > 1) {
+        std::cerr << "ERROR: Cannot print multiple tables into standard output." << std::endl;
+        usage();
+        std::cerr << helpMessage.str();
+        exit(1);
+    }
 }
 
 
@@ -869,15 +1460,16 @@ main( int argc, char** argv )
     fillFromCmdLine(argc, argv, options);
 
     // Warn if no work to be done.
-    if (!options.matchTableEnabled()) {
+    if (!options.matchTableEnabled() && !options.serverParamsTableEnabled()) {
         std::cerr << "WARNING: No work to be done." << std::endl;
     }
+
 
     rcsc::gzifstream fin( options.getRCGSourcePath().c_str() );
 
     if ( ! fin.is_open() )
     {
-        std::cerr << "Failed to open file : " << options.getRCGSourcePath() << std::endl;
+        std::cerr << "ERROR: Failed to open file : " << options.getRCGSourcePath() << std::endl;
         return 1;
     }
 
@@ -885,13 +1477,14 @@ main( int argc, char** argv )
 
     if ( ! parser )
     {
-        std::cerr << "Failed to create rcg parser." << std::endl;
+        std::cerr << "ERROR: Failed to create rcg parser." << std::endl;
         return 1;
     }
 
 
     MultiSinkCSVPrinter printer;
     // Initialize MultiSink Printer
+    // Match
     if (options.matchTableEnabled()) {
         if (options.getMatchTableOutputPath().empty()) {
             printer.enableMatchPrinter();
@@ -902,6 +1495,19 @@ main( int argc, char** argv )
                 return 1;
             }
             printer.enableMatchPrinter(std::move(matchTableSink));
+        }
+    }
+    // Server Parameters
+    if (options.serverParamsTableEnabled()) {
+        if (options.getServerParamsTableOutputPath().empty()) {
+            printer.enableServerParamsPrinter();
+        } else {
+            std::unique_ptr<std::ostream> serverParamsTableSink(new std::ofstream(options.getServerParamsTableOutputPath()));
+            if (serverParamsTableSink->fail()) {
+                std::cerr << "ERROR: Could not open server params table output file \"" << options.getServerParamsTableOutputPath() << "\"" << std::endl;
+                return 1;
+            }
+            printer.enableServerParamsPrinter(std::move(serverParamsTableSink));
         }
     }
 
