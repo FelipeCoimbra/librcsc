@@ -82,6 +82,8 @@ private:
 
     CommandCount M_command_count[rcsc::MAX_PLAYER * 2];
 
+    int playerTypesCount;
+
     // not used
     CSVPrinter();
 public:
@@ -123,7 +125,9 @@ private:
 
     std::ostream & printServerParam() const;
     std::ostream & printPlayerParam() const;
-    std::ostream & printPlayerTypes() const;
+
+    std::ostream & printPlayerTypesHeader() const;
+    std::ostream & printPlayerType(const rcsc::PlayerType& type) const;
 
 
     std::ostream & printShowHeader() const;
@@ -150,7 +154,8 @@ CSVPrinter::CSVPrinter( std::ostream & os )
       M_show_count( 0 ),
       M_cycle( 0 ),
       M_stopped( 0 ),
-      M_playmode( rcsc::PM_Null )
+      M_playmode( rcsc::PM_Null ),
+      playerTypesCount( 0 )
 {
 
 }
@@ -315,8 +320,16 @@ CSVPrinter::handlePlayerParam( const std::string & msg )
 
  */
 bool
-CSVPrinter::handlePlayerType( const std::string & )
+CSVPrinter::handlePlayerType( const std::string & msg )
 {
+    static bool firstCall = true;
+    if (firstCall) {
+        firstCall = false;
+        printPlayerTypesHeader();
+    }
+    playerTypesCount++;
+    printPlayerType(rcsc::PlayerType(msg.c_str(), 16.0)); // For game log version 5+ this should be at least 13.0
+    // TODO: There's no way of checking parsing errors with the current implementation of rcsc::PlayerType
     return true;
 }
 
@@ -957,8 +970,54 @@ CSVPrinter::printPlayerParam() const
 
  */
 std::ostream &
-CSVPrinter::printPlayerTypes() const
+CSVPrinter::printPlayerTypesHeader() const
 {
+    M_os    << "#"  // Row number
+            << ",id"
+            << ",player_speed_max"
+            << ",stamina_inc_max"
+            << ",player_decay"
+            << ",inertia_moment"
+            << ",dash_power_rate"
+            << ",player_size"
+            << ",kickable_margin"
+            << ",kick_rand"
+            << ",extra_stamina"
+            << ",effort_max"
+            << ",effort_min"
+            << ",kick_power_rate"
+            << ",foul_detect_probability"
+            << ",catchable_area_l_stretch"
+            ;
+    M_os << std::endl;
+    return M_os;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+std::ostream &
+CSVPrinter::printPlayerType(const rcsc::PlayerType& type) const
+{
+    M_os    << playerTypesCount
+            << "," << type.id()
+            << "," << type.playerSpeedMax()
+            << "," << type.staminaIncMax()
+            << "," << type.playerDecay()
+            << "," << type.inertiaMoment()
+            << "," << type.dashPowerRate()
+            << "," << type.playerSize()
+            << "," << type.kickableMargin()
+            << "," << type.kickRand()
+            << "," << type.extraStamina()
+            << "," << type.effortMax()
+            << "," << type.effortMin()
+            << "," << type.kickPowerRate()
+            << "," << type.foulDetectProbability()
+            << "," << type.catchAreaLengthStretch()
+            ;
+    M_os << std::endl;
     return M_os;
 }
 
@@ -1321,6 +1380,7 @@ public:
     MultiSinkCSVPrinter(const MultiSinkCSVPrinter&) = delete;
     MultiSinkCSVPrinter(MultiSinkCSVPrinter&&) = delete;
 
+    virtual
     ~MultiSinkCSVPrinter();
 
     virtual
@@ -1366,7 +1426,7 @@ public:
 
     virtual
     bool handlePlayerType( const std::string & msg ) noexcept override {
-        return matchPrinter ? matchPrinter->handlePlayerType(msg) : true;
+        return playerTypesPrinter ? playerTypesPrinter->handlePlayerType(msg) : true;
     }
 
     virtual
@@ -1392,6 +1452,12 @@ public:
     */
     void enablePlayerParamsPrinter(std::unique_ptr<std::ostream>&& sink=nullptr) noexcept;
 
+    /*!
+      \brief Enables printing the PlayerTypes CSV Table and sets its output destination.
+      \param sink The output destination. If null, the printer prints to std::cout.
+    */
+    void enablePlayerTypesPrinter(std::unique_ptr<std::ostream>&& sink=nullptr) noexcept;
+
 private:
 
     std::unique_ptr<CSVPrinter> matchPrinter; //<! Prints the CSV table with data from the course of the match
@@ -1400,6 +1466,8 @@ private:
     std::unique_ptr<std::ostream> serverParamsSink; //<! The output sink for the server params table
     std::unique_ptr<CSVPrinter> playerParamsPrinter; //<! Prints the CSV table with rcssserver used player parameters
     std::unique_ptr<std::ostream> playerParamsSink; //<! The output sink for the player params table
+    std::unique_ptr<CSVPrinter> playerTypesPrinter; //<! Prints the CSV table with the player types available in the match
+    std::unique_ptr<std::ostream> playerTypesSink; //<! The output sink for the player types table
 };
 
 MultiSinkCSVPrinter::MultiSinkCSVPrinter()
@@ -1409,6 +1477,8 @@ MultiSinkCSVPrinter::MultiSinkCSVPrinter()
 ,   serverParamsSink(nullptr)
 ,   playerParamsPrinter(nullptr)
 ,   playerParamsSink(nullptr)
+,   playerTypesPrinter(nullptr)
+,   playerTypesSink(nullptr)
 {}
 
 MultiSinkCSVPrinter::~MultiSinkCSVPrinter() {
@@ -1423,6 +1493,10 @@ MultiSinkCSVPrinter::~MultiSinkCSVPrinter() {
     auto playerParamsFileSink = dynamic_cast<std::ofstream*>(playerParamsSink.get());
     if (playerParamsFileSink) {
         playerParamsFileSink->close();
+    }
+    auto playerTypesFileSink = dynamic_cast<std::ofstream*>(playerTypesSink.get());
+    if (playerTypesFileSink) {
+        playerTypesFileSink->close();
     }
 }
 
@@ -1442,6 +1516,12 @@ void
 MultiSinkCSVPrinter::enablePlayerParamsPrinter(std::unique_ptr<std::ostream>&& sink) noexcept {
     playerParamsSink = std::forward<std::unique_ptr<std::ostream>>(sink);
     playerParamsPrinter.reset( new CSVPrinter( playerParamsSink ? *playerParamsSink : std::cout) );
+}
+
+void 
+MultiSinkCSVPrinter::enablePlayerTypesPrinter(std::unique_ptr<std::ostream>&& sink) noexcept {
+    playerTypesSink = std::forward<std::unique_ptr<std::ostream>>(sink);
+    playerTypesPrinter.reset( new CSVPrinter( playerTypesSink ? *playerTypesSink : std::cout) );
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1465,14 +1545,20 @@ public:
     const std::string& getServerParamsTableOutputPath() const noexcept {
         return serverParamsTableOutputPath;
     }
-    const std::string& getRCGSourcePath() const noexcept {
-        return rcgSourcePath;
-    }
     bool playerParamsTableEnabled() const noexcept {
         return playerParamsTableSwitch;
     }
     const std::string& getPlayerParamsTableOutputPath() const noexcept {
         return playerParamsTableOutputPath;
+    }
+    bool playerTypesTableEnabled() const noexcept {
+        return playerTypesTableSwitch;
+    }
+    const std::string& getPlayerTypesTableOutputPath() const noexcept {
+        return playerTypesTableOutputPath;
+    }
+    const std::string& getRCGSourcePath() const noexcept {
+        return rcgSourcePath;
     }
 
     //<! Below is just a commodity so we don't add lots of setters.
@@ -1484,6 +1570,8 @@ private:
     std::string serverParamsTableOutputPath;
     bool playerParamsTableSwitch = false;
     std::string playerParamsTableOutputPath;
+    bool playerTypesTableSwitch = false;
+    std::string playerTypesTableOutputPath;
     std::string rcgSourcePath;
 };
 
@@ -1507,6 +1595,8 @@ void fillFromCmdLine(int argc, const char* const* argv, RCG2CSVOptions& options)
         ("serverparams-out", "spo", &options.serverParamsTableOutputPath, "Output path for the ServerParams table. Leave empty to use the standard output.")
         ("playerparams", "pp", rcsc::BoolSwitch(&options.playerParamsTableSwitch), "Print CSV table with rcssserver player params used in the match.")
         ("playerparams-out", "ppo", &options.playerParamsTableOutputPath, "Output path for the PlayerParams table. Leave empty to use the standard output.")
+        ("playertypes", "pt", rcsc::BoolSwitch(&options.playerTypesTableSwitch), "Print CSV table with player types available in the match.")
+        ("playertypes-out", "pto", &options.playerTypesTableOutputPath, "Output path for the PlayerTypes table. Leave empty to use the standard output.")
         ;
     // The capture variables default values are the ones stored before parsing.
     // If we don't generate the help message before parsing, we lose them and will display a wrong help message.
@@ -1540,12 +1630,14 @@ void fillFromCmdLine(int argc, const char* const* argv, RCG2CSVOptions& options)
     std::vector<bool> enabled{
         options.matchTableSwitch, 
         options.serverParamsTableSwitch,
-        options.playerParamsTableSwitch
+        options.playerParamsTableSwitch,
+        options.playerTypesTableSwitch
     };
     std::vector<std::string> sinkPathStrs{
         options.matchTableOutputPath, 
         options.serverParamsTableOutputPath,
-        options.playerParamsTableOutputPath
+        options.playerParamsTableOutputPath,
+        options.playerTypesTableOutputPath
     };
     assert(enabled.size() == sinkPathStrs.size());
     int count = 0;
@@ -1569,7 +1661,11 @@ main( int argc, char** argv )
     fillFromCmdLine(argc, argv, options);
 
     // Warn if no work to be done.
-    if (!options.matchTableEnabled() && !options.serverParamsTableEnabled() && !options.playerParamsTableEnabled()) {
+    if (!options.matchTableEnabled() 
+    && !options.serverParamsTableEnabled() 
+    && !options.playerParamsTableEnabled()
+    && !options.playerTypesTableEnabled())
+    {
         std::cerr << "WARNING: No work to be done." << std::endl;
     }
 
@@ -1630,6 +1726,19 @@ main( int argc, char** argv )
                 return 1;
             }
             printer.enablePlayerParamsPrinter(std::move(playerParamsTableSink));
+        }
+    }
+    // Player Types
+    if (options.playerTypesTableEnabled()) {
+        if (options.getPlayerTypesTableOutputPath().empty()) {
+            printer.enablePlayerTypesPrinter();
+        } else {
+            std::unique_ptr<std::ostream> playerTypesTableSink(new std::ofstream(options.getPlayerTypesTableOutputPath()));
+            if (playerTypesTableSink->fail()) {
+                std::cerr << "ERROR: Could not open player params table output file \"" << options.getPlayerTypesTableOutputPath() << "\"" << std::endl;
+                return 1;
+            }
+            printer.enablePlayerTypesPrinter(std::move(playerTypesTableSink));
         }
     }
 
